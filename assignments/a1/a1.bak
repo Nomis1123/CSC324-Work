@@ -22,46 +22,9 @@ Copyright: (c) University of Toronto Mississsauga
   Returns a desugared version of prog, following the grammar of a
   MandarinBasicProgram from the handout,
 |#
-
-
-(define (desugar prog)
-  (match prog
-    ; Base Case: VALUES - numbers, symbols, booleans, empty list
-    [(? (lambda (p) (or (number? p)
-                        (symbol? p) 
-                        (boolean? p)
-                        (null? p))))
-     prog]
-    
-    ; N-ary Addition Case
-    [(list '+ args ...)
-     (cond
-       [(= (length args) 1)
-        (desugar (first args))]
-       [(= (length args) 2)
-        `(+ ,(desugar (first args)) ,(desugar (second args)))]  ; Use backtick here!
-       [else
-        `(+ ,(desugar (first args)) 
-            ,(desugar `(+ ,@(rest args))))])]  ; Both backticks needed!
-    
-    ; Catch-all
-    [_ prog]))
-
-; Helper function to check if something is a base value
-(define (base-value? x)
-  (or (number? x)
-      (symbol? x)
-      (boolean? x)
-      (null? x)))
-
-; Alternative, cleaner base case using the helper:
-(define (desugar-clean prog)
-  (match prog
-    ; Base Case: Use the helper function
-    [(? base-value?) prog]
-    
-    ; Recursive cases will go here...
-    [_ prog]))
+(define/match (desugar prog)
+  [(prog) prog]
+  )
 
 ; You can write helper functions freely
 (module+ test
