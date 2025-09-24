@@ -28,10 +28,12 @@ Copyright: (c) University of Toronto Mississsauga
   (match prog
     ; Base Case: VALUES - numbers, symbols, booleans, empty list
     [(? (lambda (p) (or (number? p)
-                        (symbol? p) 
                         (boolean? p)
                         (null? p))))
      prog]
+    
+    ; Base Case: IDENTIFIER (symbols that aren't reserved keywords)
+    [(? symbol?) prog]
     
     ; N-ary Addition Case
     [(list '+ args ...)
@@ -39,10 +41,15 @@ Copyright: (c) University of Toronto Mississsauga
        [(= (length args) 1)
         (desugar (first args))]
        [(= (length args) 2)
-        `(+ ,(desugar (first args)) ,(desugar (second args)))]  ; Use backtick here!
+        `(+ ,(desugar (first args)) ,(desugar (second args)))]  
        [else
         `(+ ,(desugar (first args)) 
-            ,(desugar `(+ ,@(rest args))))])]  ; Both backticks needed!
+            ,(desugar `(+ ,@(rest args))))])]
+
+    [(list first-elem args ...)
+     (if (special? first-elem)
+         (desugar-special prog)
+         prog)]
     
     ; Catch-all
     [_ prog]))
@@ -54,14 +61,37 @@ Copyright: (c) University of Toronto Mississsauga
       (boolean? x)
       (null? x)))
 
-; Alternative, cleaner base case using the helper:
-(define (desugar-clean prog)
-  (match prog
-    ; Base Case: Use the helper function
-    [(? base-value?) prog]
-    
-    ; Recursive cases will go here...
-    [_ prog]))
+
+(define (special? symbol)
+  (and (symbol? symbol)
+       (member symbol '(if let cons car cdr pair? =))))
+
+(define (desugar-special expr)
+  (match expr
+    [(list 'if cond then-expr else-expr)
+     '(if ,(desugar cond) ,(desugar then-expr) ,(desugar else-expr))]
+
+    [(list 'let bindings body)
+     '(let ,(map (lambda (binding)
+                   '(,(first binding) ,(desugar (second binding))))
+                 bindings)
+        ,(desugar body))]
+
+    [(list 'cons e1 e2)
+     '(cons ,(desugar e1) ,(desugar e2))]
+
+    [(list '= e1 e2)
+     '(= ,(desugar e1) ,(desugar e2))]
+
+    [(list 'car e)
+     '(car ,(desugar e))]
+
+    [(list 'cdr e)
+     '(cdr ,(desugar e))]
+
+    [(list 'pair? e)
+     '(pair? ,(desugar e))]
+    [_ (error "Unknown special form: ~a" expr)]))
 
 ; You can write helper functions freely
 (module+ test
