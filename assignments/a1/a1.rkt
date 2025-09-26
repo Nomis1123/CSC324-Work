@@ -21,7 +21,6 @@ Copyright: (c) University of Toronto Mississsauga
   Returns a desugared version of prog, following the grammar of a
   MandarinBasicProgram from the handout,
 |#
-
 (define (desugar prog)
   (match prog
     ; Base Case: VALUES - numbers, booleans, empty list
@@ -44,21 +43,92 @@ Copyright: (c) University of Toronto Mississsauga
         `(+ ,(desugar (first args)) 
             ,(desugar `(+ ,@(rest args))))])]
     
+    ; N-ary Lambda Case
+    [(list 'lambda (list params ...) body)
+     (desugar-lambda params body)]
+    
+    ; Match Expression Case
+    [(list 'match expr patterns ...)
+     (desugar-match expr patterns)]
+    
     [(list first-elem args ...)
-     (if (special-form? first-elem)
+     (if (special? first-elem)
          (desugar-special prog)
-         (desugar-))] ; TODO: Handle function calls next
-
+         (desugar-function-call first-elem args))]
     
     ; Catch-all
     [_ prog]))
 
 ; Helper function to check if something is a special form
-(define (special-form? symbol)
+(define (special? symbol)
   (and (symbol? symbol)
        (member symbol '(if let cons car cdr pair? =))))
 
-; helper function to handle n-ary function calls
+; Helper function to handle n-ary lambdas
+(define (desugar-lambda params body)
+  (cond
+    [(= (length params) 1)
+     `(lambda (,(first params)) ,(desugar body))]
+    [else
+     `(lambda (,(first params)) 
+        ,(desugar `(lambda ,(rest params) ,body)))]))
+
+; Helper function to handle match expressions  
+(define (desugar-match expr patterns)
+  (cond
+    ; Base case: only wildcard pattern left
+    [(and (= (length patterns) 1)
+          (wildcard-pattern? (first patterns)))
+     (desugar (second (first patterns)))]
+    
+    ; Recursive case: process first pattern, then recurse on rest
+    [else
+     (let ([first-pattern (first patterns)]
+           [rest-patterns (rest patterns)])
+       (process-pattern expr first-pattern rest-patterns))]))
+
+; Helper function to process a single pattern
+(define (process-pattern expr pattern rest-patterns)
+  (match pattern
+    ; Value pattern (literal): (42 result) 
+    [(list (? value-pattern? p) result)
+     `(if (= ,(desugar expr) ,p)
+          ,(desugar result)
+          ,(desugar-match expr rest-patterns))]
+    
+    ; Identifier pattern: (y result) or (_ result)
+    [(list (? symbol? var) result)
+     (if (eq? var '_)
+         ; Wildcard case
+         (desugar result)
+         ; Regular identifier case - always matches, creates binding
+         `(if #t
+              (let ((,var ,(desugar expr)))
+                ,(desugar result))
+              ,(desugar-match expr rest-patterns)))]
+    
+    ; Cons pattern: ((cons a b) result)
+    [(list (list 'cons var1 var2) result)
+     `(if (pair? ,(desugar expr))
+          (let ((,var1 (car ,(desugar expr)))
+                (,var2 (cdr ,(desugar expr))))
+            ,(desugar result))
+          ,(desugar-match expr rest-patterns))]
+    
+    ; If we get here, unknown pattern
+    [_ (error "Unknown pattern: ~a" pattern)]))
+
+; Helper function to check if something is a value pattern
+(define (value-pattern? p)
+  (or (number? p) (boolean? p) (null? p)))
+
+; Helper function to check if pattern is wildcard
+(define (wildcard-pattern? pattern)
+  (match pattern
+    [(list '_ result) #t]
+    [_ #f]))
+
+; Helper function to handle n-ary function calls
 (define (desugar-function-call func args)
   (cond
     ; Base case: no arguments - just desugar the function
@@ -73,7 +143,6 @@ Copyright: (c) University of Toronto Mississsauga
      (desugar-function-call `(,(desugar func) ,(desugar (first args)))
                            (rest args))]))
 
-; Helper function to handle special forms
 (define (desugar-special expr)
   (match expr
     [(list 'if cond then-expr else-expr)
@@ -108,9 +177,6 @@ Copyright: (c) University of Toronto Mississsauga
       (boolean? x)
       (null? x)))
 
-
-
-
 (module+ test
   ; We use rackunit's test-equal? to define some simple tests.
   (test-equal? "Desugaring a constant" ; Test label
@@ -133,6 +199,7 @@ Copyright: (c) University of Toronto Mississsauga
                (desugar '(match x (1 2) (_ 4)))
                '(if (= x 1) 2 4))
   
+  ; Test special forms
   (test-equal? "If with constants"
                (desugar '(if #t 1 2))
                '(if #t 1 2))
@@ -153,4 +220,20 @@ Copyright: (c) University of Toronto Mississsauga
                (desugar '(car (cons (+ 1 2) 3)))
                '(car (cons (+ 1 2) 3)))
   
+  ; More match tests
+  (test-equal? "Match with identifier pattern"
+               (desugar '(match x (y (+ y 1)) (_ 0)))
+               '(if #t (let ((y x)) (+ y 1)) 0))
+  
+  (test-equal? "Match with cons pattern"
+               (desugar '(match lst ((cons a b) a) (_ 0)))
+               '(if (pair? lst) (let ((a (car lst)) (b (cdr lst))) a) 0))
+  
+  (test-equal? "Match with multiple patterns"
+               (desugar '(match x (1 "one") (2 "two") (_ "other")))
+               '(if (= x 1) "one" (if (= x 2) "two" "other")))
+  
+  ; TODO: Write more tests. Testing is an important part of programming,
+  ; so you and your partner must write your own tests. Do not share your
+  ; tests with anyone else.
   )
