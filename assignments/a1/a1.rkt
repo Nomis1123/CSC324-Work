@@ -23,16 +23,14 @@ Copyright: (c) University of Toronto Mississsauga
 |#
 (define (desugar prog)
   (match prog
-    ; Base Case: VALUES - numbers, booleans, empty list
     [(? (lambda (p) (or (number? p)
                         (boolean? p)
                         (null? p))))
      prog]
     
-    ; Base Case: IDENTIFIER (symbols that aren't reserved keywords)
     [(? symbol?) prog]
     
-    ; N-ary Addition Case
+    ; n-ary Addition Case
     [(list '+ args ...)
      (cond
        [(= (length args) 1)
@@ -43,11 +41,11 @@ Copyright: (c) University of Toronto Mississsauga
         `(+ ,(desugar (first args)) 
             ,(desugar `(+ ,@(rest args))))])]
     
-    ; N-ary Lambda Case
+    ; nary Lambda Case
     [(list 'lambda (list params ...) body)
      (desugar-lambda params body)]
     
-    ; Match Expression Case
+    ; match Expression Case
     [(list 'match expr patterns ...)
      (desugar-match expr patterns)]
     
@@ -56,15 +54,15 @@ Copyright: (c) University of Toronto Mississsauga
          (desugar-special prog)
          (desugar-function-call first-elem args))]
     
-    ; Catch-all
+    ; catch-all
     [_ prog]))
 
-; Helper function to check if something is a special form
+; helper function to check if something is a special form
 (define (special? symbol)
   (and (symbol? symbol)
        (member symbol '(if let cons car cdr pair? =))))
 
-; Helper function to handle n-ary lambdas
+; helper function to handle n-ary lambdas
 (define (desugar-lambda params body)
   (cond
     [(= (length params) 1)
@@ -73,41 +71,34 @@ Copyright: (c) University of Toronto Mississsauga
      `(lambda (,(first params)) 
         ,(desugar `(lambda ,(rest params) ,body)))]))
 
-; Helper function to handle match expressions  
+; helper function to handle match expressions  
 (define (desugar-match expr patterns)
   (cond
-    ; Base case: only wildcard pattern left
     [(and (= (length patterns) 1)
           (wildcard-pattern? (first patterns)))
      (desugar (second (first patterns)))]
     
-    ; Recursive case: process first pattern, then recurse on rest
     [else
      (let ([first-pattern (first patterns)]
            [rest-patterns (rest patterns)])
        (process-pattern expr first-pattern rest-patterns))]))
 
-; Helper function to process a single pattern
+; helper function to process a single pattern
 (define (process-pattern expr pattern rest-patterns)
   (match pattern
-    ; Value pattern (literal): (42 result) 
     [(list (? value-pattern? p) result)
      `(if (= ,(desugar expr) ,p)
           ,(desugar result)
           ,(desugar-match expr rest-patterns))]
     
-    ; Identifier pattern: (y result) or (_ result)
     [(list (? symbol? var) result)
      (if (eq? var '_)
-         ; Wildcard case
          (desugar result)
-         ; Regular identifier case - always matches, creates binding
          `(if #t
               (let ((,var ,(desugar expr)))
                 ,(desugar result))
               ,(desugar-match expr rest-patterns)))]
     
-    ; Cons pattern: ((cons a b) result)
     [(list (list 'cons var1 var2) result)
      `(if (pair? ,(desugar expr))
           (let ((,var1 (car ,(desugar expr)))
@@ -115,30 +106,25 @@ Copyright: (c) University of Toronto Mississsauga
             ,(desugar result))
           ,(desugar-match expr rest-patterns))]
     
-    ; If we get here, unknown pattern
     [_ (error "Unknown pattern: ~a" pattern)]))
 
-; Helper function to check if something is a value pattern
 (define (value-pattern? p)
   (or (number? p) (boolean? p) (null? p)))
 
-; Helper function to check if pattern is wildcard
+; helper function to check if pattern is wildcard
 (define (wildcard-pattern? pattern)
   (match pattern
     [(list '_ result) #t]
     [_ #f]))
 
-; Helper function to handle n-ary function calls
+;  function to handle n-ary function calls
 (define (desugar-function-call func args)
   (cond
-    ; Base case: no arguments - just desugar the function
     [(null? args) (desugar func)]
     
-    ; Base case: one argument - (func arg)
     [(= (length args) 1)
      `(,(desugar func) ,(desugar (first args)))]
     
-    ; Recursive case: multiple arguments - ((func arg1) arg2 ...)
     [else
      (desugar-function-call `(,(desugar func) ,(desugar (first args)))
                            (rest args))]))
@@ -170,7 +156,7 @@ Copyright: (c) University of Toronto Mississsauga
      `(pair? ,(desugar e))]
     [_ (error "Unknown special form: ~a" expr)]))
 
-; Helper function to check if something is a base value
+;  function to check if something is a base value
 (define (base-value? x)
   (or (number? x)
       (symbol? x)
@@ -233,7 +219,5 @@ Copyright: (c) University of Toronto Mississsauga
                (desugar '(match x (1 "one") (2 "two") (_ "other")))
                '(if (= x 1) "one" (if (= x 2) "two" "other")))
   
-  ; TODO: Write more tests. Testing is an important part of programming,
-  ; so you and your partner must write your own tests. Do not share your
-  ; tests with anyone else.
+
   )
