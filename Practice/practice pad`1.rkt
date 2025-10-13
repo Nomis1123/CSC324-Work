@@ -1,6 +1,6 @@
 #lang racket
 
-(define list '(1 2 3 ))
+(define list '(1 2 3 5))
 
 
 (define (add ls)
@@ -16,4 +16,14 @@
 (define (funny x y)
   'hello)
 
-(funny 10 (/ 1 0))
+(funny 10 (/ 1 1))
+
+
+(define (product lst)
+  (if (empty? lst)
+      1
+      (*
+       (first lst)
+       (product (rest lst)))))
+
+(product list)
