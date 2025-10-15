@@ -1,0 +1,71 @@
+{-|
+Module: A2
+Description: Assignment 2
+Copyright: (c) University of Toronto Mississagua
+               CSC324 Principles of Programming Languages, Fall 2025
+-}
+-- This lists what this module exports. Don't change this!
+module A2
+  (
+    run,
+    eval
+  )
+where
+
+-- You *may not* add imports from Data.Map, or any other imports
+import A2Types(Expr(..), Value(..), Env)
+import qualified Data.Map (lookup, insert, empty)
+import Data.List (intercalate)
+
+-- | Runs an Orange expression by calling `eval` with the empty environment
+run :: Expr -> Value
+run e = eval Data.Map.empty e
+
+
+-- | An interpreter for the Orange language.
+eval :: Env -> Expr -> Value
+eval env (Literal v) = undefined -- todo
+eval env (Plus a b)  = case ((eval env a), (eval env b)) of
+    (Num x, Num y) -> undefined -- todo
+    _              -> undefined -- todo
+    -- what other patterns are missing above (if any)?
+eval env (Var name)  = case (Data.Map.lookup name env) of
+    Just a  -> undefined -- "a" is of type Value 
+    Nothing -> undefined -- "name" is not found in "env"
+eval env _           = undefined -- todo what other cases are missing?
+
+
+-- | Helper function to obtain a list of unique elements in a list
+-- Example:
+--   ghci> unique [1, 2, 3, 4]
+--   [1,2,3,4]
+--   ghci> unique [1, 2, 3, 4, 4]
+--   [1,2,3,4]
+unique :: (Eq a) => [a] -> [a]
+unique [] = []
+unique (x:xs)
+  | elem x xs = unique xs
+  | otherwise = x : unique xs
+
+
+racketifyValue :: Value -> String
+racketifyValue T = "#t"
+racketifyValue F = "#f"
+racketifyValue (Num x) = show x
+racketifyValue Empty = "'()"
+racketifyValue (Pair a b) = "(cons " ++ racketifyValue a ++ " " ++ racketifyValue b ++ ")"
+racketifyValue (Closure _ _ _) = error "can't racketify a closure"
+racketifyValue (Error _) = error "can't racketify an error value"
+
+racketifyExpr :: Expr -> String
+racketifyExpr (Literal v) = racketifyValue v
+racketifyExpr (Plus a b) = undefined
+racketifyExpr (Times a b) = undefined
+racketifyExpr (Equal a b) = "(equal? " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
+racketifyExpr (Cons a b) = undefined
+racketifyExpr (First a) = undefined
+racketifyExpr (Rest a) = undefined
+racketifyExpr (Var x) = x
+racketifyExpr (If c t f) = undefined
+racketifyExpr (Lambda xs body) = "(lambda (" ++ intercalate " " xs ++ ") " ++ racketifyExpr body ++ ")"
+racketifyExpr (App f xs) = undefined 

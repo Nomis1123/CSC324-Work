@@ -27,3 +27,8 @@
        (product (rest lst)))))
 
 (product list)
+
+
+
+(define/match (desugar exp)
+  [list 'let* (list) body])

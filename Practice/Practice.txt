@@ -1,0 +1,29 @@
+The difference between eager and lazy evaluation is that eager evaluation evaluates all functions arguments where they currently are in the code to their final value before calling. The laxy evaluation only evaluates athe arguments to their final value when they are called in the function
+
+Lexical scope resolves free variables based on where they are defined in the scope, while dynamic evaluates where they are called
+
+2 essential pieces of information for a closure is
+- a pointer to the functions code
+- a lexical environment
+
+A type constructor is the name of a type and nothing else, while a value constructor are the functions that map values to to types
+
+The difference is that static typing occurs at the time of compilation while dynamic typing occurs after compilation, as the program runs
+
+Type coercion is when a data type changes from one type to another, for example, adding the string 1 to the int 4 will give you 14 as a string. Here we are turning the int 4 into a string
+
+----
+
+the difference between eager and lazy evaluation is that eager evaluates arguments to their final values where they are in the code prior to calling, while lazy evaluation evaluates the arguments to their final value at calling
+
+Lexical scope is when the interpreter resolves free variables where they are defined in the scope, while dynamic resolves free variables where they are called
+
+A closure needs a pointer to the functions code or instructions and a lexical environment
+
+A type constructor is just the name for a type itself, while a value constructor is the function or constants that assign values to that type
+
+Static typing is when the program checks types at the compilation time, while dynamic is when the program is running
+
+strong typing is when a language prevents operations of mismatched typing such as python when adding a string to an int, while weak typing will try and convert the typing known as type coercion
+
+type coercion is when a language implicitly tries to change the type of a piece of data to another.
