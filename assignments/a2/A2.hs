@@ -24,15 +24,28 @@ run e = eval Data.Map.empty e
 
 -- | An interpreter for the Orange language.
 eval :: Env -> Expr -> Value
-eval env (Literal v) = undefined -- todo
+eval env (Literal (Closure _ _ _)) = Error "Literal"
+eval env (Literal (Error _)) = Error "Literal"
+eval env (Literal v) = v
+
 eval env (Plus a b)  = case ((eval env a), (eval env b)) of
-    (Num x, Num y) -> undefined -- todo
-    _              -> undefined -- todo
-    -- what other patterns are missing above (if any)?
+    (Num x, Num y) -> Num (x + y)
+    (Error e, _) -> Error e
+    (_, Error e) -> Error e
+    _ -> Error "Plus"
+
+eval env (Times a b) = case ((eval env a), (eval env b)) of
+    (Num x, Num y) -> Num (x * y)
+    (Error e, _) -> Error e
+    (_, Error e) -> Error e
+    _ -> Error "Times"
+
+      
 eval env (Var name)  = case (Data.Map.lookup name env) of
-    Just a  -> undefined -- "a" is of type Value 
-    Nothing -> undefined -- "name" is not found in "env"
-eval env _           = undefined -- todo what other cases are missing?
+    Just a  -> a
+    Nothing -> Error "Var"
+
+eval env _ = Error "Not implemented yet"
 
 
 -- | Helper function to obtain a list of unique elements in a list
