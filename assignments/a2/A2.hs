@@ -49,9 +49,9 @@ eval env (Var name)  = case (Data.Map.lookup name env) of
     Just a  -> a
     Nothing -> Error "Var"
 
-eval env (If c t e) = case (eval env c) of
+eval env (If c t x) = case (eval env c) of
     Error e -> Error e
-    F       -> eval env e
+    F       -> eval env x
     T       -> eval env t
     _       -> Error "If"
 
@@ -59,7 +59,7 @@ eval env (Lambda args body) =
     if length args /= length (unique args) 
     then Error "Lambda"
     else Closure args env body
-    
+
 eval env _ = Error "Not implemented yet"
 
 
