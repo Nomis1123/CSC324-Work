@@ -40,11 +40,26 @@ eval env (Times a b) = case ((eval env a), (eval env b)) of
     (_, Error e) -> Error e
     _ -> Error "Times"
 
+eval env (Equal a b) = case ((eval env a), (eval env b)) of
+    (Error e, _) -> Error e
+    (_, Error e) -> Error e
+    (x, y) -> if x == y then T else F
       
 eval env (Var name)  = case (Data.Map.lookup name env) of
     Just a  -> a
     Nothing -> Error "Var"
 
+eval env (If c t e) = case (eval env c) of
+    Error e -> Error e
+    F       -> eval env e
+    T       -> eval env t
+    _       -> Error "If"
+
+eval env (Lambda args body) = 
+    if length args /= length (unique args) 
+    then Error "Lambda"
+    else Closure args env body
+    
 eval env _ = Error "Not implemented yet"
 
 
