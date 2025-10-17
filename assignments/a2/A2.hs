@@ -21,6 +21,22 @@ import Data.List (intercalate)
 run :: Expr -> Value
 run e = eval Data.Map.empty e
 
+-- Helper: evaluate all arguments left-to-right, return error or list of values
+evalAllArgs :: Env -> [Expr] -> Either String [Value]
+evalAllArgs env [] = Right []
+evalAllArgs env (e:es) = 
+    case (eval env e) of
+        Error err -> Left err
+        v -> case evalAllArgs env es of
+            Left err -> Left err
+            Right vs -> Right (v:vs)
+
+-- Helper: add parameter bindings to environment
+addBindings :: [String] -> [Value] -> Env -> Env
+addBindings [] [] env = env
+addBindings (p:ps) (v:vs) env = addBindings ps vs (Data.Map.insert p v env)
+addBindings _ _ env = env
+
 
 -- | An interpreter for the Orange language.
 eval :: Env -> Expr -> Value
@@ -60,7 +76,19 @@ eval env (Lambda args body) =
     then Error "Lambda"
     else Closure args env body
 
-eval env _ = Error "Not implemented yet"
+eval env (App fnExpr argExprs) = 
+    case (eval env fnExpr) of
+        Error e -> Error e
+        Closure params cenv body ->
+            if length params /= length argExprs
+            then Error "App"
+            else 
+                case evalAllArgs env argExprs of
+                    Left err -> Error err
+                    Right argVals ->
+                        let newEnv = addBindings params argVals cenv
+                        in eval newEnv body
+        _ -> Error "App"
 
 
 -- | Helper function to obtain a list of unique elements in a list
