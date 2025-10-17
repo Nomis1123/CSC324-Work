@@ -71,6 +71,21 @@ eval env (If c t x) = case (eval env c) of
     T       -> eval env t
     _       -> Error "If"
 
+eval env (Cons a b) = case ((eval env a), (eval env b)) of
+    (Error e, _) -> Error e
+    (_, Error e) -> Error e
+    (v1, v2)     -> Pair v1 v2
+
+eval env (First e) = case (eval env e) of
+    Error err  -> Error err
+    Pair v1 v2 -> v1
+    _          -> Error "First"
+
+eval env (Rest e) = case (eval env e) of
+    Error err  -> Error err
+    Pair v1 v2 -> v2
+    _          -> Error "Rest"
+
 eval env (Lambda args body) = 
     if length args /= length (unique args) 
     then Error "Lambda"
@@ -115,13 +130,13 @@ racketifyValue (Error _) = error "can't racketify an error value"
 
 racketifyExpr :: Expr -> String
 racketifyExpr (Literal v) = racketifyValue v
-racketifyExpr (Plus a b) = undefined
-racketifyExpr (Times a b) = undefined
+racketifyExpr (Plus a b) = "(+ " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
+racketifyExpr (Times a b) = "(* " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
 racketifyExpr (Equal a b) = "(equal? " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
-racketifyExpr (Cons a b) = undefined
-racketifyExpr (First a) = undefined
-racketifyExpr (Rest a) = undefined
+racketifyExpr (Cons a b) = "(cons " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
+racketifyExpr (First a) = "(car " ++ racketifyExpr a ++ ")"
+racketifyExpr (Rest a) = "(cdr " ++ racketifyExpr a ++ ")"
 racketifyExpr (Var x) = x
-racketifyExpr (If c t f) = undefined
+racketifyExpr (If c t f) = "(if " ++ racketifyExpr c ++ " " ++ racketifyExpr t ++ " " ++ racketifyExpr f ++ ")"
 racketifyExpr (Lambda xs body) = "(lambda (" ++ intercalate " " xs ++ ") " ++ racketifyExpr body ++ ")"
-racketifyExpr (App f xs) = undefined 
+racketifyExpr (App f xs) = "(" ++ racketifyExpr f ++ " " ++ intercalate " " (map racketifyExpr xs) ++ ")"
