@@ -142,6 +142,29 @@ cpsEval env (Equal a b) k =
                     Error e -> Error e
                     _ -> k $ if va == vb then T else F
 
+cpsEval env (Cons a b) k = 
+    cpsEval env a $ \va ->
+        case va of
+            Error e -> Error e
+            _ -> cpsEval env b $ \vb ->
+                case vb of
+                    Error e -> Error e
+                    _ -> k (Pair va vb)
+
+cpsEval env (First expr) k =
+    cpsEval env expr $ \v ->
+        case v of 
+            Error e -> Error e
+            Pair a b -> k a
+            _ -> Error "First"
+
+cpsEval env (Rest expr) k =
+    cpsEval env expr $ \v ->
+        case v of
+            Error e -> Error e
+            Pair a b -> k b
+            _ -> Error "Rest"
+
 cpsEval env (Lambda params body) k_lambda = k_lambda $ Closure $ \argvals k_app ->
     -- TODO: handle errors!
     -- note that we differentiate between k_lambda: the continuation 
