@@ -121,7 +121,27 @@ cpsEval env (Plus a b) k =
                     Num y -> k (Num (x + y))
                     _ -> Error "Plus"
             _ -> Error "Plus"
-            
+
+cpsEval env (Times a b) k = 
+    cpsEval env a $ \va ->
+        case va of 
+            Error e -> Error e
+            Num x -> cpsEval env b $ \vb ->
+                case vb of
+                    Error e -> Error e
+                    Num y -> k (Num (x * y))
+                    _ -> Error "Times"
+            _ -> Error "Times"
+
+cpsEval env (Equal a b) k = 
+    cpsEval env a $ \va ->
+        case va of 
+            Error e -> Error e
+            _ -> cpsEval env b $ \vb ->
+                case vb of
+                    Error e -> Error e
+                    _ -> k $ if va == vb then T else F
+
 cpsEval env (Lambda params body) k_lambda = k_lambda $ Closure $ \argvals k_app ->
     -- TODO: handle errors!
     -- note that we differentiate between k_lambda: the continuation 
