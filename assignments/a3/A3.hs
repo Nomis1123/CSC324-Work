@@ -99,8 +99,29 @@ cpsMerge lst1 lst2 k = undefined
 --      Env -> Expr -> (Value -> r) -> r
 --   This restriction on the type of the continuation makes it easier
 --   to define `Expr` Haskell data type, and to check for errors.
+
 cpsEval :: Env -> Expr -> (Value -> Value) -> Value
-cpsEval env (Literal v) k = k v -- TODO: handle errors!
+cpsEval env (Literal v) k = 
+    if validLiteral v
+        then k v
+        else Error "Literal"
+
+cpsEval env (Var name) k = 
+    case Data.Map.lookup name env of
+        Just v  -> k v
+        Nothing -> Error "Var"
+
+cpsEval env (Plus a b) k = 
+    cpsEval env a $ \va ->
+        case va of 
+            Error e -> Error e
+            Num x -> cpsEval env b $ \vb ->
+                case vb of
+                    Error e -> Error e
+                    Num y -> k (Num (x + y))
+                    _ -> Error "Plus"
+            _ -> Error "Plus"
+            
 cpsEval env (Lambda params body) k_lambda = k_lambda $ Closure $ \argvals k_app ->
     -- TODO: handle errors!
     -- note that we differentiate between k_lambda: the continuation 
