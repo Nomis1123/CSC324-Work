@@ -165,6 +165,13 @@ cpsEval env (Rest expr) k =
             Pair a b -> k b
             _ -> Error "Rest"
 
+cpsEval env (If cond thenExpr elseExpr) k = 
+    cpsEval env cond $ \vc ->
+        case vc of
+            Error e -> Error e
+            F -> cpsEval env elseExpr k
+            _ -> cpsEval env thenExpr k
+
 cpsEval env (Lambda params body) k_lambda = k_lambda $ Closure $ \argvals k_app ->
     -- TODO: handle errors!
     -- note that we differentiate between k_lambda: the continuation 
