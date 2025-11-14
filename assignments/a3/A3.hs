@@ -173,8 +173,7 @@ cpsEval env (If cond thenExpr elseExpr) k =
             _ -> cpsEval env thenExpr k
 
 cpsEval env (Reset expr) k = 
-    let result = cpsEval env expr id
-    in case result of
+    case cpsEval env expr id of
         Error e -> Error e
         v -> k v
 
