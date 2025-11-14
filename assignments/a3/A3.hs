@@ -172,18 +172,23 @@ cpsEval env (If cond thenExpr elseExpr) k =
             F -> cpsEval env elseExpr k
             _ -> cpsEval env thenExpr k
 
-cpsEval env (Lambda params body) k_lambda = k_lambda $ Closure $ \argvals k_app ->
-    -- TODO: handle errors!
-    -- note that we differentiate between k_lambda: the continuation 
-    -- to call after *creating the closure*, and k_app: the continuation
-    -- to call after *evaluating the body of the closure* during an
-    -- application.
-    let paramArgTuples = zip params argvals
-        newEnv = foldl (\e (param, arg) -> Data.Map.insert param arg e)
-                       env
-                       paramArgTuples
-    in cpsEval newEnv body k_app
-cpsEval env _ k = undefined
+cpsEval env (Reset expr) k = 
+    let result = cpsEval env expr id
+    in case result of
+        Error e -> Error e
+        v -> k v
+
+cpsEval env (Lambda params body) k_lambda = 
+    if params /= unique params
+    then Error "Lambda"
+    else k_lambda $ Closure $ \argvals k_app ->
+        if length params /= length argvals
+        then Error "App"
+        else let paramArgTuples = zip params argvals
+                 newEnv = foldl (\e (param, arg) -> Data.Map.insert param arg e)
+                                env
+                                paramArgTuples
+             in cpsEval newEnv body k_app
 
 
 -- Helper function (written in direct style) to identify duplicate parameters in a lambda
