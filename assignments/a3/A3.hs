@@ -27,65 +27,50 @@ import Data.List (intercalate)
 -- * Warmup Task. CPS Transforming Haskell Functions *
 ------------------------------------------------------------------------------
 
--- | Compute the factorial of a number
--- factorial :: Int -> Int
-
--- | Compute the factorial of a number, in continuation passing style
-cpsFactorial:: Int -> (Int -> r) -> r
+cpsFactorial :: Int -> (Int -> r) -> r
 cpsFactorial 0 k = k 1
-cpsFactorial n k = undefined
+cpsFactorial n k = cpsFactorial (n - 1) $ \res -> k (n * res)
 
--- | Compute the n-th fibonacci number F(n).
---    Recall F(0) = 0, F(1) = 1, and F(n) = F(n-1) + F(n-2)
+cpsFibonacci :: Int -> (Int -> r) -> r
+cpsFibonacci 0 k = k 0
+cpsFibonacci 1 k = k 1
+cpsFibonacci n k = 
+    cpsFibonacci (n - 1) $ \res1 ->
+        cpsFibonacci (n - 2) $ \res2 ->
+            k (res1 + res2)
 
--- fibonacci :: Int -> Int
-fibonacci :: Int -> Int
-fibonacci 0 = 0
-fibonacci 1 = 1
-fibonacci n = (fibonacci (n - 1)) + (fibonacci (n - 2))
-
--- | Compute the n-th fibonacci number F(n), in continuation passing style
-cpsFibonacci:: Int -> (Int -> r) -> r
-cpsFibonacci n k = undefined
-
-------------------------------------------------------------------------------
--- | List functions
-
--- | CPS transform of the function `length`, which computes the length of a list
 cpsLength :: [a] -> (Int -> r) -> r
-cpsLength [] k = undefined
+cpsLength [] k = k 0
+cpsLength (x:xs) k = cpsLength xs $ \res -> k (1 + res)
 
-
--- | CPS transform of the function `map`. The argument function (to be applied
---   every element of the list) is written in direct style
 cpsMap :: (a -> b) -> [a] -> ([b] -> r) -> r
-cpsMap f [] k = undefined
+cpsMap f [] k = k []
+cpsMap f (x:xs) k = 
+    cpsMap f xs $ \res -> k (f x : res)
 
-------------------------------------------------------------------------------
--- Merge Sort
-
--- | Sort a list using mergeSort
--- mergeSort :: [Int] -> [Int]
-
--- | Split a list into two lists. All list elements in even indices
--- are placed in one sub-list, and all list elements in odd indices
--- are placed in the second sub-list.
--- split :: [Int] -> ([Int], [Int])
-
--- | Merge two sorted lists together
--- merge :: [Int] -> [Int] -> [Int]
-
--- | CPS transform of mergeSort
-cpsMergeSort :: [Int] -> ([Int] -> r) -> r
-cpsMergeSort lst k = undefined
-
--- | CPS transform of split
 cpsSplit :: [Int] -> (([Int], [Int]) -> r) -> r
-cpsSplit lst k = undefined
+cpsSplit [] k = k ([], [])
+cpsSplit [x] k = k ([x], [])
+cpsSplit (x:y:rest) k = 
+    cpsSplit rest $ \(evens, odds) -> 
+        k (x:evens, y:odds)
 
--- | CPS transform of merge
 cpsMerge :: [Int] -> [Int] -> ([Int] -> r) -> r
-cpsMerge lst1 lst2 k = undefined
+cpsMerge [] ys k = k ys
+cpsMerge xs [] k = k xs
+cpsMerge (x:xs) (y:ys) k = 
+    if x <= y
+    then cpsMerge xs (y:ys) $ \res -> k (x:res)
+    else cpsMerge (x:xs) ys $ \res -> k (y:res)
+
+cpsMergeSort :: [Int] -> ([Int] -> r) -> r
+cpsMergeSort [] k = k []
+cpsMergeSort [x] k = k [x]
+cpsMergeSort lst k = 
+    cpsSplit lst $ \(left, right) ->
+        cpsMergeSort left $ \sortedLeft ->
+            cpsMergeSort right $ \sortedRight ->
+                cpsMerge sortedLeft sortedRight k
 
 ------------------------------------------------------------------------------
 -- * Main Task. CPS Transforming The Orange Interpreter *
@@ -177,6 +162,15 @@ cpsEval env (Reset expr) k =
         Error e -> Error e
         v -> k v
 
+cpsEval env (Shift name body) k =
+    let capturedCont = \v -> k v
+        closureForCont = Closure $ \argvals k_app ->
+            case argvals of
+                [v] -> k_app (capturedCont v)
+                _ -> Error "App"
+        newEnv = Data.Map.insert name closureForCont env
+    in cpsEval newEnv body id
+
 cpsEval env (Lambda params body) k_lambda = 
     if params /= unique params
     then Error "Lambda"
@@ -189,6 +183,24 @@ cpsEval env (Lambda params body) k_lambda =
                                 paramArgTuples
              in cpsEval newEnv body k_app
 
+cpsEval env (App fnExpr argExprs) k = 
+    cpsEval env fnExpr $ \vfn ->
+        case vfn of
+            Error e -> Error e
+            Closure f -> 
+                evalArgs env argExprs $ \argVals ->
+                    f argVals k
+            _ -> Error "App"
+
+-- Helper function to evaluate arguments
+evalArgs :: Env -> [Expr] -> ([Value] -> Value) -> Value
+evalArgs env [] k = k []
+evalArgs env (e:es) k = 
+    cpsEval env e $ \v ->
+        case v of
+            Error err -> Error err
+            _ -> evalArgs env es $ \vs ->
+                k (v:vs)
 
 -- Helper function (written in direct style) to identify duplicate parameters in a lambda
 unique :: (Eq a) => [a] -> [a]
@@ -219,15 +231,15 @@ racketifyValue (Error _) = error "can't racketify an error value"
 
 racketifyExpr :: Expr -> String
 racketifyExpr (Literal v) = racketifyValue v
-racketifyExpr (Plus a b) = undefined
-racketifyExpr (Times a b) = undefined
+racketifyExpr (Plus a b) = "(+ " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
+racketifyExpr (Times a b) = "(* " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
 racketifyExpr (Equal a b) = "(equal? " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
-racketifyExpr (Cons a b) = undefined
-racketifyExpr (First a) = undefined
-racketifyExpr (Rest a) = undefined
+racketifyExpr (Cons a b) = "(cons " ++ racketifyExpr a ++ " " ++ racketifyExpr b ++ ")"
+racketifyExpr (First a) = "(car " ++ racketifyExpr a ++ ")"
+racketifyExpr (Rest a) = "(cdr " ++ racketifyExpr a ++ ")"
 racketifyExpr (Var x) = x
-racketifyExpr (If c t f) = undefined
+racketifyExpr (If c t f) = "(if " ++ racketifyExpr c ++ " " ++ racketifyExpr t ++ " " ++ racketifyExpr f ++ ")"
 racketifyExpr (Lambda xs body) = "(lambda (" ++ intercalate " " xs ++ ") " ++ racketifyExpr body ++ ")"
-racketifyExpr (App f xs) = undefined
-racketifyExpr (Shift x e1) = undefined
-racketifyExpr (Reset e1) = undefined
+racketifyExpr (App f xs) = "(" ++ racketifyExpr f ++ " " ++ intercalate " " (map racketifyExpr xs) ++ ")"
+racketifyExpr (Shift x e1) = "(shift " ++ x ++ " " ++ racketifyExpr e1 ++ ")"
+racketifyExpr (Reset e1) = "(reset " ++ racketifyExpr e1 ++ ")"
